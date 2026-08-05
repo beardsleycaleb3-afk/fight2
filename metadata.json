@@ -1,0 +1,6 @@
+{
+  "name": "Fight Engine",
+  "description": "Mobile-first 2D fighting game engine with touch joystick, animation loader, combos, AI, and stage select.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
