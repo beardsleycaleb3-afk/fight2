@@ -14,12 +14,18 @@ class ComboTrieNode(val charVal: Char? = null) {
     var isComboEnd: Boolean = false
     var comboName: String? = null
     var moveState: FighterState? = null
+    var tacticalHint: String? = null
 }
 
 class MoveComboTrie {
     private val root = ComboTrieNode()
 
-    fun insertCombo(inputSequence: String, comboName: String, resultingState: FighterState) {
+    fun insertCombo(
+        inputSequence: String,
+        comboName: String,
+        resultingState: FighterState,
+        tacticalHint: String? = null
+    ) {
         var current = root
         for (ch in inputSequence.uppercase()) {
             current = current.children.getOrPut(ch) { ComboTrieNode(ch) }
@@ -27,6 +33,7 @@ class MoveComboTrie {
         current.isComboEnd = true
         current.comboName = comboName
         current.moveState = resultingState
+        current.tacticalHint = tacticalHint ?: "Execute $comboName Ender!"
     }
 
     fun matchSequence(inputSequence: String): ComboTrieNode? {
@@ -35,6 +42,35 @@ class MoveComboTrie {
             current = current.children[ch] ?: return null
         }
         return if (current.isComboEnd) current else null
+    }
+
+    fun matchPrefix(inputSequence: String): ComboTrieNode? {
+        var current = root
+        for (ch in inputSequence.uppercase()) {
+            current = current.children[ch] ?: return null
+        }
+        return current
+    }
+
+    fun getNextPossibleInputs(inputSequence: String): List<Pair<Char, String?>> {
+        val node = matchPrefix(inputSequence) ?: return emptyList()
+        return node.children.map { (char, childNode) ->
+            char to (childNode.comboName ?: childNode.tacticalHint)
+        }
+    }
+}
+
+object DefaultComboTrieFactory {
+    fun createDefaultTrie(): MoveComboTrie {
+        val trie = MoveComboTrie()
+        // P = Punch, K = Kick, S = Special, J = Jump/Up, D = Down
+        trie.insertCombo("PK", "Target Combo Alpha", FighterState.KICK, "Follow up with KICK for 2-hit ground chain")
+        trie.insertCombo("PPS", "Special Cancel Burst", FighterState.SPECIAL, "Cancel second punch into SPECIAL!")
+        trie.insertCombo("PPK", "Triple Ender Combo", FighterState.ROUNDHOUSE, "Finish 3-hit string with Heavy Kick!")
+        trie.insertCombo("DKS", "Low Sweep Cancel", FighterState.SPECIAL, "Cancel crouching kick into Fireball!")
+        trie.insertCombo("JKP", "Airborne Target Combo", FighterState.PUNCH, "Slam down with Airborne Punch!")
+        trie.insertCombo("KK", "Dual Kick Rush", FighterState.ROUNDHOUSE, "Double kick flurry!")
+        return trie
     }
 }
 

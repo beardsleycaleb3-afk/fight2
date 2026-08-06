@@ -85,6 +85,14 @@ fun ArcadeHUD(
                 .padding(start = 12.dp, top = 82.dp)
         )
 
+        // REAL-TIME PREFIX COMBO TRIE PROMPTS & NOTIFICATIONS (Centered under Top Header)
+        PrefixComboTrieHUD(
+            fighter = engine.p1,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 84.dp)
+        )
+
         // MATCH STATUS BANNER OVERLAY (FIGHT!, K.O.!, WINNER!)
         if (engine.isGameOver || engine.matchWinnerText.isNotEmpty()) {
             Box(

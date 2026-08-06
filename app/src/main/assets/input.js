@@ -117,3 +117,46 @@ export class InputBuffer {
 if (typeof window !== 'undefined') {
   window.InputBuffer = InputBuffer;
 }
+
+/**
+ * Prefix Combo Trie for Web Engine HUD Tactical Prompts
+ */
+export class PrefixComboTrieJS {
+  constructor() {
+    this.root = { children: {}, isComboEnd: false, comboName: null, hint: null };
+    this.initDefaultCombos();
+  }
+
+  insertCombo(sequence, comboName, hint) {
+    let current = this.root;
+    for (const char of sequence.toUpperCase()) {
+      if (!current.children[char]) {
+        current.children[char] = { children: {}, isComboEnd: false, comboName: null, hint: null };
+      }
+      current = current.children[char];
+    }
+    current.isComboEnd = true;
+    current.comboName = comboName;
+    current.hint = hint;
+  }
+
+  initDefaultCombos() {
+    this.insertCombo('PK', 'Target Combo Alpha', 'Press KICK for 2-hit string');
+    this.insertCombo('PPS', 'Special Cancel Burst', 'Cancel into SPECIAL!');
+    this.insertCombo('PPK', 'Triple Ender', 'Finish with Heavy Kick!');
+    this.insertCombo('DKS', 'Low Sweep Cancel', 'Cancel crouching kick!');
+  }
+
+  evaluateSequence(seqString) {
+    let current = this.root;
+    for (const char of seqString.toUpperCase()) {
+      if (!current.children[char]) return null;
+      current = current.children[char];
+    }
+    return current;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.PrefixComboTrieJS = PrefixComboTrieJS;
+}
