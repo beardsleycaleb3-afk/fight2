@@ -21,6 +21,7 @@ enum class FighterState {
     UPPERCUT,
     SPECIAL,
     HURT,
+    HITSTOP,
     FALL,
     LAND,
     BLOCK,

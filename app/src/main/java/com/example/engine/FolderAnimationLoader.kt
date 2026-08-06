@@ -108,7 +108,7 @@ object FolderAnimationLoader {
             FighterState.HEADBUTT -> 6
             FighterState.UPPERCUT -> 7
             FighterState.SPECIAL -> 8
-            FighterState.HURT -> 4
+            FighterState.HURT, FighterState.HITSTOP -> 4
             FighterState.FALL -> 5
             FighterState.LAND -> 3
             FighterState.BLOCK -> 3
