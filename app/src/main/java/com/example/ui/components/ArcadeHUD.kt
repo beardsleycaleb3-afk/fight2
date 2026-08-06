@@ -267,13 +267,19 @@ private fun HealthBar(
     isReversed: Boolean = false
 ) {
     val fraction = (currentHealth.toFloat() / maxHealth.toFloat()).coerceIn(0f, 1f)
+    val healthGradient = if (barColor == Color(0xFF00E676)) {
+        Brush.horizontalGradient(listOf(Color(0xFF22C55E), Color(0xFF34D399)))
+    } else {
+        Brush.horizontalGradient(listOf(Color(0xFFEF4444), Color(0xFFF87171)))
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(18.dp)
-            .background(Color(0xFF212121), RoundedCornerShape(4.dp))
-            .border(1.5.dp, Color(0xFF424242), RoundedCornerShape(4.dp))
+            .background(Color(0xFF0F172A), RoundedCornerShape(6.dp))
+            .border(1.5.dp, Color(0xFF1E293B), RoundedCornerShape(6.dp))
+            .padding(2.dp)
     ) {
         Box(
             modifier = Modifier
@@ -281,9 +287,7 @@ private fun HealthBar(
                 .fillMaxWidth(fraction)
                 .align(if (isReversed) Alignment.CenterEnd else Alignment.CenterStart)
                 .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(barColor, barColor.copy(alpha = 0.7f))
-                    ),
+                    brush = healthGradient,
                     shape = RoundedCornerShape(4.dp)
                 )
         )
@@ -299,6 +303,11 @@ private fun SuperMeter(
 ) {
     val fraction = (energy / 100f).coerceIn(0f, 1f)
     val isReady = energy >= cost
+    val meterGradient = if (isReady) {
+        Brush.horizontalGradient(listOf(Color(0xFF3B82F6), Color(0xFF00E5FF)))
+    } else {
+        Brush.horizontalGradient(listOf(Color(0xFF1D4ED8), Color(0xFF60A5FA)))
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -308,7 +317,7 @@ private fun SuperMeter(
         if (!isReversed) {
             Text(
                 text = if (isReady) "MAX!" else "$energy%",
-                color = if (isReady) Color(0xFF00E5FF) else Color.Gray,
+                color = if (isReady) Color(0xFF00E5FF) else Color(0xFF94A3B8),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
@@ -319,21 +328,21 @@ private fun SuperMeter(
             modifier = Modifier
                 .weight(1f)
                 .height(8.dp)
-                .background(Color(0xFF121212), RoundedCornerShape(2.dp))
-                .border(1.dp, if (isReady) Color(0xFF00E5FF) else Color(0xFF333333), RoundedCornerShape(2.dp))
+                .background(Color(0xFF020617), RoundedCornerShape(3.dp))
+                .border(1.dp, if (isReady) Color(0xFF00E5FF) else Color(0xFF1E293B), RoundedCornerShape(3.dp))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(fraction)
                     .align(if (isReversed) Alignment.CenterEnd else Alignment.CenterStart)
-                    .background(if (isReady) Color(0xFF00E5FF) else Color(0xFFFFB300))
+                    .background(meterGradient, shape = RoundedCornerShape(2.dp))
             )
         }
         if (isReversed) {
             Text(
                 text = if (isReady) "MAX!" else "$energy%",
-                color = if (isReady) Color(0xFF00E5FF) else Color.Gray,
+                color = if (isReady) Color(0xFF00E5FF) else Color(0xFF94A3B8),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,

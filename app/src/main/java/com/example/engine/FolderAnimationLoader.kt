@@ -227,6 +227,126 @@ object FolderAnimationLoader {
         )
     }
 
+    // Animation Cache storing cached sequences: Key -> AnimationSequence
+    private val animationCache = mutableMapOf<String, AnimationSequence>()
+
+    data class AnimationSequence(
+        val cacheKey: String,
+        val folderPath: String,
+        val actionName: String,
+        val framePaths: List<String>,
+        val frameCount: Int
+    )
+
+    /**
+     * Automated animation loader function.
+     * Parses files named with the 'name_000.png' convention (e.g., 'idle_000.png', 'punch_001.png')
+     * or other frame naming patterns, extracts numeric indices, sorts them sequentially,
+     * and automatically sequences them into the animation cache.
+     */
+    fun parseAndSequenceFolder(
+        folderPath: String,
+        actionName: String,
+        fileNames: List<String>
+    ): AnimationSequence {
+        val cleanAction = actionName.lowercase()
+        val regexZeroPadded = Regex("""^${cleanAction}_(\d+)\.(png|jpg|webp)$""", RegexOption.IGNORE_CASE)
+        val regexGenericNumber = Regex("""^(\d+)\.(png|jpg|webp)$""", RegexOption.IGNORE_CASE)
+        val regexFramePrefix = Regex("""^frame(\d+)\.(png|jpg|webp)$""", RegexOption.IGNORE_CASE)
+
+        val indexedFrames = mutableListOf<Pair<Int, String>>()
+
+        for (fileName in fileNames) {
+            val matchZeroPadded = regexZeroPadded.find(fileName)
+            val matchGeneric = regexGenericNumber.find(fileName)
+            val matchFrame = regexFramePrefix.find(fileName)
+
+            val index = when {
+                matchZeroPadded != null -> matchZeroPadded.groupValues[1].toIntOrNull()
+                matchGeneric != null -> (matchGeneric.groupValues[1].toIntOrNull() ?: 1) - 1
+                matchFrame != null -> (matchFrame.groupValues[1].toIntOrNull() ?: 1) - 1
+                else -> null
+            }
+
+            if (index != null) {
+                val fullPath = if (folderPath.endsWith("/")) "$folderPath$fileName" else "$folderPath/$fileName"
+                indexedFrames.add(index to fullPath)
+            }
+        }
+
+        // Sort sequentially by frame index
+        val sortedPaths = indexedFrames.sortedBy { it.first }.map { it.second }
+
+        val cacheKey = "${folderPath.trimEnd('/')}/$cleanAction"
+        val sequence = AnimationSequence(
+            cacheKey = cacheKey,
+            folderPath = folderPath,
+            actionName = cleanAction,
+            framePaths = sortedPaths,
+            frameCount = sortedPaths.size
+        )
+
+        animationCache[cacheKey] = sequence
+        return sequence
+    }
+
+    /**
+     * Automatically parses and pre-populates animation sequence cache for a character's
+     * actions based on the standard 'name_000.png' convention.
+     */
+    fun loadAndCacheCharacterAnimations(character: FighterCharacter): Map<String, AnimationSequence> {
+        val result = mutableMapOf<String, AnimationSequence>()
+        for (state in FighterState.values()) {
+            val actionName = state.name.lowercase()
+            val folderPath = "${character.folderRoot}$actionName/"
+            val frameCount = getFrameCount(state)
+
+            // Generate standard candidate file names for name_000.png convention
+            val candidateFileNames = (0 until frameCount).map { i ->
+                character.framePattern.formatFrame(actionName, i)
+            }
+
+            val sequence = parseAndSequenceFolder(folderPath, actionName, candidateFileNames)
+            result[actionName] = sequence
+        }
+        return result
+    }
+
+    /**
+     * Retrieves a cached animation sequence for a specific character and action.
+     */
+    fun getCachedSequence(character: FighterCharacter, state: FighterState): AnimationSequence? {
+        val actionName = state.name.lowercase()
+        val cacheKey = "${character.folderRoot.trimEnd('/')}/$actionName/$actionName"
+        var cached = animationCache[cacheKey]
+        if (cached == null) {
+            loadAndCacheCharacterAnimations(character)
+            cached = animationCache[cacheKey]
+        }
+        return cached
+    }
+
+    /**
+     * Retrieves frame asset path from animation cache.
+     */
+    fun getCachedFramePath(character: FighterCharacter, state: FighterState, frameIndex: Int): String {
+        val sequence = getCachedSequence(character, state)
+        if (sequence != null && sequence.framePaths.isNotEmpty()) {
+            val safeIndex = frameIndex % sequence.framePaths.size
+            return sequence.framePaths[safeIndex]
+        }
+        return resolveAssetPath(character, state, frameIndex)
+    }
+
+    /**
+     * Clears or inspects current animation cache.
+     */
+    fun clearCache() {
+        animationCache.clear()
+    }
+
+    fun getCacheSize(): Int = animationCache.size
+
     // Resolves file path string based on folder structure
     fun resolveAssetPath(character: FighterCharacter, state: FighterState, frameIndex: Int): String {
         val folder = state.name.lowercase()
