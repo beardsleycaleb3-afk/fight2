@@ -391,7 +391,16 @@ class FightingEngine(
 
         fighter.position = Offset(newX, newY)
 
-        // 5. Hitstun & Blockstun Timers
+        // 5. Hitstun & Blockstun Timers & Combo Reset Decay
+        if (fighter.comboResetTimer > 0) {
+            fighter.comboResetTimer--
+            if (fighter.comboResetTimer == 0) {
+                fighter.recentAttackChain.clear()
+                fighter.comboCount = 0
+                fighter.comboDamageTotal = 0
+            }
+        }
+
         if (fighter.hitstunTimer > 0) {
             fighter.hitstunTimer--
             if (fighter.hitstunTimer == 0 && fighter.isGrounded) {
@@ -529,6 +538,8 @@ class FightingEngine(
             // Combo escalation
             attacker.comboCount++
             attacker.comboDamageTotal += attack.damage
+            attacker.recentAttackChain.add(attacker.state)
+            attacker.comboResetTimer = 65 // 65 frame combo window
             attacker.energy = min(100, attacker.energy + 12)
 
             // Punchy Camera Shake & Hitstop Freeze Frame

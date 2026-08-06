@@ -49,6 +49,7 @@ fun ArcadeHUD(
 ) {
     val context = LocalContext.current
     val vibrator = remember { context.getSystemService(Vibrator::class.java) }
+    var showTacticalMoveList by remember { mutableStateOf(false) }
 
     fun triggerHaptic() {
         if (vibrator != null && vibrator.hasVibrator()) {
@@ -72,6 +73,16 @@ fun ArcadeHUD(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 24.dp)
+        )
+
+        // TACTICAL MOVE LIST HUD OVERLAY (Floating under Top Header)
+        TacticalMoveListHUD(
+            fighter = engine.p1,
+            isExpanded = showTacticalMoveList,
+            onToggleExpanded = { showTacticalMoveList = !showTacticalMoveList },
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 12.dp, top = 82.dp)
         )
 
         // MATCH STATUS BANNER OVERLAY (FIGHT!, K.O.!, WINNER!)

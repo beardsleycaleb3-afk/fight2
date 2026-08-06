@@ -92,7 +92,9 @@ data class FighterInstance(
     var blockstunTimer: Int = 0,
     var comboCount: Int = 0,
     var comboDamageTotal: Int = 0,
-    var wins: Int = 0
+    var wins: Int = 0,
+    val recentAttackChain: MutableList<FighterState> = mutableListOf(),
+    var comboResetTimer: Int = 0
 )
 
 data class StageDefinition(

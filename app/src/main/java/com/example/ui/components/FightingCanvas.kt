@@ -224,6 +224,62 @@ private fun DrawScope.drawFighter(
     // Resolve frame path from cached animation sequence
     val framePath = FolderAnimationLoader.getCachedFramePath(char, fighter.state, fighter.currentFrameIndex)
 
+    // Fighter Aura & Flame Transformation on High Energy / Special
+    val isPoweredUp = fighter.energy >= 40 || fighter.state == FighterState.SPECIAL || fighter.comboCount > 0
+    val isSuperAwakened = fighter.energy >= 80 || fighter.state == FighterState.SPECIAL
+
+    // Spectral Tiger Spirit / Dragon Avatar Silhouette behind Fighter on Special or High Combos
+    if (isSuperAwakened) {
+        val tigerCenter = bodyCenter + Offset(-20f * facing, -40f)
+        // Roaring Spirit Aura Background Glow
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color(0xFFFF9100).copy(alpha = 0.55f), Color(0xFFFF1744).copy(alpha = 0.25f), Color.Transparent),
+                center = tigerCenter,
+                radius = 160f
+            ),
+            radius = 160f,
+            center = tigerCenter
+        )
+        // Tiger Spirit Eyes
+        drawCircle(color = Color(0xFFFFEA00), radius = 6f, center = tigerCenter + Offset(-18f * facing, -25f))
+        drawCircle(color = Color(0xFFFFEA00), radius = 6f, center = tigerCenter + Offset(14f * facing, -25f))
+        // Flame Tiger Crest Arc
+        drawArc(
+            color = Color(0xFFFFAB00).copy(alpha = 0.7f),
+            startAngle = if (facing > 0) -130f else -50f,
+            sweepAngle = 100f,
+            useCenter = false,
+            topLeft = tigerCenter - Offset(80f, 80f),
+            size = Size(160f, 160f),
+            style = Stroke(width = 8f, cap = StrokeCap.Round)
+        )
+    }
+
+    // Fiery Flame Hair Spires & Roaring Flame Aura above head
+    if (isPoweredUp) {
+        val flameColorPrimary = if (isSuperAwakened) Color(0xFFFF3D00) else Color(0xFFFF9100)
+        val flameColorSecondary = Color(0xFFFFEA00)
+
+        // Flaming Hair Spire 1
+        val flamePath1 = Path().apply {
+            moveTo(headCenter.x - 14f, headCenter.y - 12f)
+            quadraticTo(headCenter.x - 22f * facing, headCenter.y - 55f, headCenter.x - 6f, headCenter.y - 70f)
+            quadraticTo(headCenter.x + 8f, headCenter.y - 45f, headCenter.x + 14f, headCenter.y - 12f)
+            close()
+        }
+        drawPath(flamePath1, brush = Brush.verticalGradient(listOf(flameColorSecondary, flameColorPrimary)))
+
+        // Flaming Hair Spire 2 (Side Flame)
+        val flamePath2 = Path().apply {
+            moveTo(headCenter.x - 6f, headCenter.y - 10f)
+            quadraticTo(headCenter.x + 30f * facing, headCenter.y - 48f, headCenter.x + 18f * facing, headCenter.y - 62f)
+            quadraticTo(headCenter.x + 8f * facing, headCenter.y - 35f, headCenter.x - 2f, headCenter.y - 10f)
+            close()
+        }
+        drawPath(flamePath2, brush = Brush.verticalGradient(listOf(Color.White, flameColorSecondary)))
+    }
+
     // Shadow on ground
     drawOval(
         color = Color.Black.copy(alpha = 0.45f),
@@ -261,6 +317,23 @@ private fun DrawScope.drawFighter(
         size = Size(bodyWidth, bodyHeight),
         cornerRadius = androidx.compose.ui.geometry.CornerRadius(12f, 12f)
     )
+
+    // Tiger Stripe Power Markings on Torso
+    if (isPoweredUp) {
+        val stripeColor = Color(0xFFFFD54F)
+        drawLine(
+            color = stripeColor,
+            start = Offset(pos.x - 12f, pos.y - bodyHeight - 10f),
+            end = Offset(pos.x - 2f, pos.y - bodyHeight),
+            strokeWidth = 3.5f
+        )
+        drawLine(
+            color = stripeColor,
+            start = Offset(pos.x + 2f, pos.y - bodyHeight + 10f),
+            end = Offset(pos.x + 12f, pos.y - bodyHeight + 20f),
+            strokeWidth = 3.5f
+        )
+    }
 
     // Head / Mask
     drawCircle(
