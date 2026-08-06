@@ -33,6 +33,10 @@ class FightingEngine(
 
     var roundTimer = 99
     var timerTicks = 0
+    var currentRound = 1
+    var maxRounds = 3
+    var isRoundInTransition = false
+    var roundTransitionTimer = 0
     var isPaused = false
     var isGameOver = false
     var matchWinnerText = ""
@@ -61,6 +65,9 @@ class FightingEngine(
     }
 
     fun resetMatch() {
+        currentRound = 1
+        isRoundInTransition = false
+        roundTransitionTimer = 0
         p1 = FighterInstance(
             id = "p1",
             character = p1Char,
@@ -68,7 +75,7 @@ class FightingEngine(
             facingRight = true,
             health = p1Char.maxHealth,
             energy = 0,
-            wins = p1.wins
+            wins = 0
         )
         p2 = FighterInstance(
             id = "p2",
@@ -77,7 +84,7 @@ class FightingEngine(
             facingRight = false,
             health = p2Char.maxHealth,
             energy = 0,
-            wins = p2.wins
+            wins = 0
         )
         roundTimer = 99
         timerTicks = 0
@@ -88,8 +95,42 @@ class FightingEngine(
         screenShakeTimer = 0
     }
 
+    fun startNextRound() {
+        currentRound++
+        isRoundInTransition = false
+        roundTransitionTimer = 0
+        roundTimer = 99
+        timerTicks = 0
+        matchWinnerText = ""
+
+        // Reset fighter health bars and starting positions
+        p1.health = p1.character.maxHealth
+        p1.position = Offset(200f, groundY)
+        p1.facingRight = true
+        p1.state = FighterState.IDLE
+        p1.hitstunTimer = 0
+        p1.blockstunTimer = 0
+
+        p2.health = p2.character.maxHealth
+        p2.position = Offset(650f, groundY)
+        p2.facingRight = false
+        p2.state = FighterState.IDLE
+        p2.hitstunTimer = 0
+        p2.blockstunTimer = 0
+    }
+
     fun update() {
-        if (isPaused || isGameOver) return
+        if (isPaused) return
+
+        if (isRoundInTransition) {
+            roundTransitionTimer--
+            if (roundTransitionTimer <= 0) {
+                startNextRound()
+            }
+            return
+        }
+
+        if (isGameOver) return
 
         // Hitstop Freeze Frame for punchy hit confirmations
         if (hitStopTimer > 0) {
@@ -178,14 +219,14 @@ class FightingEngine(
         cameraZoom = (1.2f - (distance / 1200f)).coerceIn(0.85f, 1.3f)
 
         // Health Checks
-        if (p1.health <= 0 && !isGameOver) {
+        if (p1.health <= 0 && !isGameOver && !isRoundInTransition) {
             p1.health = 0
             p1.state = FighterState.LOSE
             p2.state = FighterState.WIN
             p2.wins++
-            isGameOver = true
-            matchWinnerText = "${p2.character.name} WINS!"
-        } else if (p2.health <= 0 && !isGameOver) {
+            matchWinnerText = "K.O.! ${p2.character.name} WINS ROUND!"
+            evaluateRoundEnd()
+        } else if (p2.health <= 0 && !isGameOver && !isRoundInTransition) {
             if (gameMode == GameMode.TRAINING) {
                 // Infinite health reset in training mode
                 p2.health = p2.character.maxHealth
@@ -194,8 +235,8 @@ class FightingEngine(
                 p2.state = FighterState.LOSE
                 p1.state = FighterState.WIN
                 p1.wins++
-                isGameOver = true
-                matchWinnerText = "${p1.character.name} WINS!"
+                matchWinnerText = "K.O.! ${p1.character.name} WINS ROUND!"
+                evaluateRoundEnd()
             }
         }
     }
@@ -606,23 +647,47 @@ class FightingEngine(
     }
 
     private fun evaluateTimeout() {
-        isGameOver = true
+        if (isGameOver || isRoundInTransition) return
+
         when {
             p1.health > p2.health -> {
                 p1.state = FighterState.WIN
                 p2.state = FighterState.LOSE
                 p1.wins++
-                matchWinnerText = "TIME OVER - ${p1.character.name} WINS!"
+                matchWinnerText = "TIME OVER! ${p1.character.name} WINS ROUND!"
             }
             p2.health > p1.health -> {
                 p2.state = FighterState.WIN
                 p1.state = FighterState.LOSE
                 p2.wins++
-                matchWinnerText = "TIME OVER - ${p2.character.name} WINS!"
+                matchWinnerText = "TIME OVER! ${p2.character.name} WINS ROUND!"
             }
             else -> {
-                matchWinnerText = "DRAW GAME!"
+                matchWinnerText = "TIME OVER! DRAW ROUND!"
             }
+        }
+        evaluateRoundEnd()
+    }
+
+    private fun evaluateRoundEnd() {
+        val targetWins = 2
+        if (p1.wins >= targetWins) {
+            isGameOver = true
+            matchWinnerText = "MATCH OVER! ${p1.character.name} VICTORIOUS!"
+        } else if (p2.wins >= targetWins) {
+            isGameOver = true
+            matchWinnerText = "MATCH OVER! ${p2.character.name} VICTORIOUS!"
+        } else if (currentRound >= maxRounds) {
+            isGameOver = true
+            matchWinnerText = when {
+                p1.wins > p2.wins -> "MATCH OVER! ${p1.character.name} WINS MATCH!"
+                p2.wins > p1.wins -> "MATCH OVER! ${p2.character.name} WINS MATCH!"
+                else -> "MATCH DRAW!"
+            }
+        } else {
+            // Initiate round transition (resets health bars and starts next round)
+            isRoundInTransition = true
+            roundTransitionTimer = 150 // 2.5 second intermission
         }
     }
 }

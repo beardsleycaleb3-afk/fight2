@@ -68,6 +68,8 @@ fun ArcadeHUD(
             p1 = engine.p1,
             p2 = engine.p2,
             roundTimer = engine.roundTimer,
+            currentRound = engine.currentRound,
+            isRoundInTransition = engine.isRoundInTransition,
             onPauseClicked = onPauseClicked,
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -94,11 +96,11 @@ fun ArcadeHUD(
         )
 
         // MATCH STATUS BANNER OVERLAY (FIGHT!, K.O.!, WINNER!)
-        if (engine.isGameOver || engine.matchWinnerText.isNotEmpty()) {
+        if (engine.isGameOver || (engine.matchWinnerText.isNotEmpty() && !engine.isRoundInTransition)) {
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(16.dp))
+                    .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
                     .border(2.dp, Color(0xFFFFD54F), RoundedCornerShape(16.dp))
                     .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
@@ -121,6 +123,34 @@ fun ArcadeHUD(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("REMATCH", fontWeight = FontWeight.Bold)
                     }
+                }
+            }
+        } else if (engine.isRoundInTransition) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(Color(0xFF0F0E17).copy(alpha = 0.88f), RoundedCornerShape(16.dp))
+                    .border(2.dp, Color(0xFFFFD54F), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .testTag("round_transition_banner")
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = engine.matchWinnerText,
+                        color = Color(0xFFFFD54F),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Resetting Health Bars & Preparing Round ${engine.currentRound + 1}...",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -165,6 +195,8 @@ private fun TopFightHeader(
     p1: FighterInstance,
     p2: FighterInstance,
     roundTimer: Int,
+    currentRound: Int = 1,
+    isRoundInTransition: Boolean = false,
     onPauseClicked: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -210,6 +242,8 @@ private fun TopFightHeader(
         OnScreenMatchTimerHUD(
             roundTimer = roundTimer,
             maxTime = 99,
+            currentRound = currentRound,
+            isRoundInTransition = isRoundInTransition,
             onPauseClicked = onPauseClicked,
             modifier = Modifier.padding(horizontal = 8.dp)
         )
@@ -537,6 +571,8 @@ private fun ActionButton(
 fun OnScreenMatchTimerHUD(
     roundTimer: Int,
     maxTime: Int = 99,
+    currentRound: Int = 1,
+    isRoundInTransition: Boolean = false,
     onPauseClicked: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -596,12 +632,21 @@ fun OnScreenMatchTimerHUD(
             )
         }
 
+        Text(
+            text = if (isRoundInTransition) "NEXT ROUND" else "ROUND $currentRound",
+            color = Color(0xFFFFD54F),
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Black,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.padding(top = 2.dp)
+        )
+
         Spacer(modifier = Modifier.height(2.dp))
 
         IconButton(
             onClick = onPauseClicked,
             modifier = Modifier
-                .size(28.dp)
+                .size(26.dp)
                 .testTag("pause_button")
         ) {
             Icon(
