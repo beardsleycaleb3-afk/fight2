@@ -96,18 +96,23 @@ object FolderAnimationLoader {
     fun getFrameCount(state: FighterState): Int {
         return when (state) {
             FighterState.IDLE -> 6
-            FighterState.WALK_FORWARD -> 8
-            FighterState.WALK_BACKWARD -> 8
+            FighterState.WALK_FORWARD, FighterState.WALK_BACKWARD, FighterState.WALK -> 8
+            FighterState.RUN -> 8
             FighterState.CROUCH -> 4
             FighterState.JUMP -> 6
+            FighterState.JAB -> 4
+            FighterState.CROSS -> 5
             FighterState.PUNCH -> 5
             FighterState.KICK -> 6
+            FighterState.ROUNDHOUSE -> 7
+            FighterState.HEADBUTT -> 6
+            FighterState.UPPERCUT -> 7
             FighterState.SPECIAL -> 8
             FighterState.HURT -> 4
             FighterState.FALL -> 5
             FighterState.LAND -> 3
             FighterState.BLOCK -> 3
-            FighterState.WIN -> 8
+            FighterState.WIN, FighterState.VICTORY -> 8
             FighterState.LOSE -> 6
         }
     }
@@ -115,9 +120,15 @@ object FolderAnimationLoader {
     // Frame timing - tick delay per frame
     fun getFrameDuration(state: FighterState): Int {
         return when (state) {
+            FighterState.JAB -> 2
+            FighterState.CROSS -> 3
             FighterState.PUNCH -> 3
             FighterState.KICK -> 4
+            FighterState.ROUNDHOUSE -> 4
+            FighterState.HEADBUTT -> 4
+            FighterState.UPPERCUT -> 3
             FighterState.SPECIAL -> 3
+            FighterState.RUN -> 4
             FighterState.HURT -> 4
             FighterState.FALL -> 5
             FighterState.LAND -> 2

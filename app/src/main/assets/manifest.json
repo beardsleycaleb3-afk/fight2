@@ -1,0 +1,16 @@
+{
+  "name": "Fight Engine Mobile",
+  "short_name": "FightEngine",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b0c10",
+  "theme_color": "#66fcf1",
+  "description": "2D Arcade Fighting Game Engine linked with sprite animations, LUT lookup tables, arrays, lists, trees, tries, queue and deque data structures.",
+  "icons": [
+    {
+      "src": "fight/assets/sprites/fighter/east/idle/idle_000.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

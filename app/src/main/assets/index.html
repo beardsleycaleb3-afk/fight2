@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fight Engine - Sprite Assets & Combo LUT Index</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    body {
+      background-color: #0b0c10;
+      color: #66fcf1;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      color: #45a29e;
+      border-bottom: 2px solid #66fcf1;
+      padding-bottom: 10px;
+    }
+    .badge {
+      background: #1f2833;
+      color: #c5c6c7;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    .tree-box {
+      background: #141b24;
+      border: 1px solid #45a29e;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+    code {
+      color: #ffbd59;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔥 Fight Engine Sprite & Data Structure Index</h1>
+  <p><strong>Status:</strong> ServiceWorker Active & Linked | Offline Cache Ready</p>
+  
+  <div class="tree-box">
+    <h3>📂 Linked Sprite Directory Root:</h3>
+    <code>fight/assets/sprites/fighter/east/</code><br>
+    <code>fight/assets/sprites/fighter/flaming/east/</code><br>
+    <code>fight/assets/sprites/fighter/shadow/east/</code><br>
+    <code>fight/assets/sprites/fighter/cyber/east/</code>
+  </div>
+
+  <div class="tree-box">
+    <h3>📂 Subfolder Action Links:</h3>
+    <span class="badge">📁 /cross</span>
+    <span class="badge">📁 /headbutt</span>
+    <span class="badge">📁 /idle</span>
+    <span class="badge">📁 /jab</span>
+    <span class="badge">📁 /jump</span>
+    <span class="badge">📁 /kick</span>
+    <span class="badge">📁 /punch</span>
+    <span class="badge">📁 /roundhouse</span>
+    <span class="badge">📁 /run</span>
+    <span class="badge">📁 /uppercut</span>
+    <span class="badge">📁 /victory</span>
+    <span class="badge">📁 /walk</span>
+  </div>
+
+  <div class="tree-box">
+    <h3>🌲 Linked Data Structures & LUTs:</h3>
+    <ul>
+      <li><strong>Lookup Table (LUT):</strong> Fast O(1) state & frame mapping for <code>fight/assets/sprites/fighter/</code></li>
+      <li><strong>Prefix Combo Trie:</strong> Input sequence evaluation tree for special cancels & target combos</li>
+      <li><strong>Hitbox Binary Search Tree:</strong> Dynamic frame range & collision box indexing</li>
+      <li><strong>Command Queue:</strong> Rolling input buffer window queue</li>
+      <li><strong>Frame Deque:</strong> Double-ended queue for frame pipeline & freeze-frame hitstop</li>
+    </ul>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW Registered with scope:', reg.scope))
+          .catch(err => console.error('SW Registration Failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>
