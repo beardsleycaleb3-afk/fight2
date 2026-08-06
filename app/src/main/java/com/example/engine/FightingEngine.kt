@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Color
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.random.Random
 
 class FightingEngine(
     val p1Char: FighterCharacter,
@@ -39,12 +40,18 @@ class FightingEngine(
     var cameraOffset = Offset.Zero
     var cameraZoom = 1.0f
     var screenShakeTimer = 0
+    var hitStopTimer = 0
 
     val particles = mutableListOf<HitParticle>()
     val aiController = AiController(aiDifficulty)
 
     var showHitboxesInTraining = false
     var trainingDummyAction = "STAND" // "STAND", "CROUCH", "GUARD_ALL", "JUMP", "AI"
+
+    init {
+        FolderAnimationLoader.loadAndCacheCharacterAnimations(p1Char)
+        FolderAnimationLoader.loadAndCacheCharacterAnimations(p2Char)
+    }
 
     // Inputs active for P1
     val p1Inputs = mutableSetOf<ControlInput>()
@@ -77,10 +84,26 @@ class FightingEngine(
         isGameOver = false
         matchWinnerText = ""
         particles.clear()
+        hitStopTimer = 0
+        screenShakeTimer = 0
     }
 
     fun update() {
         if (isPaused || isGameOver) return
+
+        // Hitstop Freeze Frame for punchy hit confirmations
+        if (hitStopTimer > 0) {
+            hitStopTimer--
+            if (screenShakeTimer > 0) screenShakeTimer--
+            val particleIterator = particles.iterator()
+            while (particleIterator.hasNext()) {
+                val p = particleIterator.next()
+                p.life--
+                p.position = p.position + p.velocity
+                if (p.life <= 0) particleIterator.remove()
+            }
+            return
+        }
 
         // Round timer countdown
         if (gameMode != GameMode.TRAINING) {
@@ -292,31 +315,83 @@ class FightingEngine(
     }
 
     private fun updateFighterPhysicsAndState(fighter: FighterInstance) {
-        // Apply Gravity
+        // 1. Apply Dynamic Gravity & Terminal Velocity
         if (!fighter.isGrounded) {
-            fighter.velocity = fighter.velocity.copy(y = fighter.velocity.y + 0.9f)
+            val gravityAcc = if (fighter.velocity.y < 0) 0.75f else 0.95f // Lighter rising, punchy falling
+            val newVy = (fighter.velocity.y + gravityAcc).coerceAtMost(18f)
+            fighter.velocity = fighter.velocity.copy(y = newVy)
         }
 
-        // Apply Position Delta
-        var newX = (fighter.position.x + fighter.velocity.x).coerceIn(40f, arenaWidth - 40f)
+        // 2. Horizontal Friction & Drag Decay
+        val dragFactor = if (fighter.isGrounded) 0.82f else 0.98f
+        var newVx = fighter.velocity.x * dragFactor
+        if (abs(newVx) < 0.05f) newVx = 0f
+        fighter.velocity = fighter.velocity.copy(x = newVx)
+
+        // 3. Wall Collision & Wall Bounce
+        var newX = fighter.position.x + fighter.velocity.x
+        val minBoundary = 40f
+        val maxBoundary = arenaWidth - 40f
+
+        if (newX <= minBoundary || newX >= maxBoundary) {
+            if (abs(fighter.velocity.x) > 8f && (fighter.state == FighterState.HURT || fighter.state == FighterState.FALL)) {
+                // Wall Bounce on high velocity knockback!
+                fighter.velocity = fighter.velocity.copy(x = -fighter.velocity.x * 0.55f)
+                newX = newX.coerceIn(minBoundary, maxBoundary)
+                screenShakeTimer = 6
+                particles.add(
+                    HitParticle(
+                        position = Offset(if (newX <= minBoundary) minBoundary else maxBoundary, fighter.position.y - 80f),
+                        velocity = Offset(0f, -2f),
+                        color = Color(0xFFFFD54F),
+                        life = 14,
+                        maxLife = 14,
+                        text = "WALL BOUNCE!"
+                    )
+                )
+            } else {
+                newX = newX.coerceIn(minBoundary, maxBoundary)
+                fighter.velocity = fighter.velocity.copy(x = 0f)
+            }
+        }
+
+        // 4. Floor Collisions & Ground Bounce
         var newY = fighter.position.y + fighter.velocity.y
 
-        // Ground landing check
         if (newY >= groundY) {
             newY = groundY
-            fighter.velocity = fighter.velocity.copy(y = 0f)
             if (!fighter.isGrounded) {
-                fighter.isGrounded = true
-                if (fighter.state == FighterState.JUMP || fighter.state == FighterState.FALL) {
-                    fighter.state = FighterState.LAND
-                    fighter.currentFrameIndex = 0
+                if (fighter.velocity.y > 7f && (fighter.state == FighterState.FALL || fighter.state == FighterState.HURT)) {
+                    // Ground Bounce!
+                    fighter.velocity = fighter.velocity.copy(y = -fighter.velocity.y * 0.42f)
+                    screenShakeTimer = 5
+                    particles.add(
+                        HitParticle(
+                            position = Offset(newX, groundY - 10f),
+                            velocity = Offset(0f, -1f),
+                            color = Color(0xFF80CBC4),
+                            life = 12,
+                            maxLife = 12,
+                            text = "SLAM!"
+                        )
+                    )
+                } else {
+                    // Solid landing
+                    fighter.isGrounded = true
+                    fighter.velocity = fighter.velocity.copy(y = 0f)
+                    if (fighter.state == FighterState.JUMP || fighter.state == FighterState.FALL) {
+                        fighter.state = FighterState.LAND
+                        fighter.currentFrameIndex = 0
+                    }
                 }
+            } else {
+                fighter.velocity = fighter.velocity.copy(y = 0f)
             }
         }
 
         fighter.position = Offset(newX, newY)
 
-        // Hitstun & Blockstun timers
+        // 5. Hitstun & Blockstun Timers
         if (fighter.hitstunTimer > 0) {
             fighter.hitstunTimer--
             if (fighter.hitstunTimer == 0 && fighter.isGrounded) {
@@ -330,7 +405,7 @@ class FightingEngine(
             }
         }
 
-        // Frame animation ticks
+        // 6. Frame Animation Ticks
         fighter.stateTimer++
         val maxFrames = FolderAnimationLoader.getFrameCount(fighter.state)
         val ticksPerFrame = FolderAnimationLoader.getFrameDuration(fighter.state)
@@ -340,14 +415,13 @@ class FightingEngine(
             fighter.currentFrameIndex++
 
             if (fighter.currentFrameIndex >= maxFrames) {
-                // Animation loop or end state transition
                 when (fighter.state) {
                     FighterState.PUNCH, FighterState.KICK, FighterState.SPECIAL, FighterState.LAND, FighterState.HURT -> {
                         fighter.state = FighterState.IDLE
                         fighter.currentFrameIndex = 0
                     }
                     FighterState.WIN, FighterState.LOSE -> {
-                        fighter.currentFrameIndex = maxFrames - 1 // Hold final frame
+                        fighter.currentFrameIndex = maxFrames - 1
                     }
                     else -> {
                         fighter.currentFrameIndex = 0
@@ -373,6 +447,11 @@ class FightingEngine(
 
     private fun handleHitImpact(attacker: FighterInstance, defender: FighterInstance, attack: AttackBox) {
         val isBlocked = defender.isBlocking || (defender.state == FighterState.BLOCK)
+        val knockbackDir = if (attacker.position.x <= defender.position.x) 1f else -1f
+        val impactPoint = Offset(
+            x = (attacker.position.x + defender.position.x) / 2f,
+            y = defender.position.y - 100f
+        )
 
         if (isBlocked) {
             // Blocked hit
@@ -380,20 +459,52 @@ class FightingEngine(
             defender.health = max(0, defender.health - blockDamage)
             defender.blockstunTimer = attack.blockstun
             defender.state = FighterState.BLOCK
-            defender.velocity = Offset(attack.knockbackX * 0.4f, 0f)
+
+            val blockKnockback = knockbackDir * abs(attack.knockbackX) * 0.45f
+            defender.velocity = Offset(blockKnockback, 0f)
+            attacker.velocity = Offset(-knockbackDir * abs(attack.knockbackX) * 0.2f, 0f)
 
             // Gain small energy on block
             attacker.energy = min(100, attacker.energy + 5)
             defender.energy = min(100, defender.energy + 8)
 
-            // Spawn block spark
+            screenShakeTimer = 4
+            hitStopTimer = 2
+
+            // Spawn cyan block spark ring and blue sparks
             particles.add(
                 HitParticle(
-                    position = defender.position.copy(y = defender.position.y - 100f),
+                    position = impactPoint,
+                    velocity = Offset.Zero,
+                    color = Color(0xFF00E5FF),
+                    life = 10,
+                    maxLife = 10,
+                    size = 25f,
+                    isRing = true
+                )
+            )
+            for (i in 0 until 6) {
+                val angle = (i * 60f + Random.nextFloat() * 20f) * (Math.PI.toFloat() / 180f)
+                val speed = Random.nextFloat() * 6f + 3f
+                particles.add(
+                    HitParticle(
+                        position = impactPoint,
+                        velocity = Offset(kotlin.math.cos(angle) * speed, kotlin.math.sin(angle) * speed),
+                        color = Color(0xFF80DEEA),
+                        life = 12,
+                        maxLife = 12,
+                        size = Random.nextFloat() * 8f + 4f,
+                        isSpark = true
+                    )
+                )
+            }
+            particles.add(
+                HitParticle(
+                    position = impactPoint + Offset(0f, -20f),
                     velocity = Offset(0f, -2f),
                     color = Color(0xFF00E5FF),
-                    life = 12,
-                    maxLife = 12,
+                    life = 14,
+                    maxLife = 14,
                     text = "BLOCK!"
                 )
             )
@@ -401,26 +512,69 @@ class FightingEngine(
             // Clean Hit!
             defender.health = max(0, defender.health - attack.damage)
             defender.hitstunTimer = attack.hitstun
-            defender.state = if (attack.knockbackY < -5f) FighterState.FALL else FighterState.HURT
-            defender.velocity = Offset(attack.knockbackX, attack.knockbackY)
-            if (attack.knockbackY < -5f) defender.isGrounded = false
+
+            val hitKnockbackX = knockbackDir * abs(attack.knockbackX)
+            val hitKnockbackY = attack.knockbackY
+
+            defender.velocity = Offset(hitKnockbackX, hitKnockbackY)
+            if (hitKnockbackY < -3f) {
+                defender.isGrounded = false
+                defender.state = FighterState.FALL
+            } else {
+                defender.state = FighterState.HURT
+            }
+
+            attacker.velocity = Offset(-knockbackDir * abs(attack.knockbackX) * 0.22f, 0f)
 
             // Combo escalation
             attacker.comboCount++
             attacker.comboDamageTotal += attack.damage
             attacker.energy = min(100, attacker.energy + 12)
 
-            // Camera shake
-            screenShakeTimer = 8
+            // Punchy Camera Shake & Hitstop Freeze Frame
+            screenShakeTimer = (attack.damage / 2f).toInt().coerceIn(8, 22)
+            hitStopTimer = if (attack.damage > 20) 6 else 4
 
-            // Hit Particles & Damage Numbers
+            // 1. Expanding Shockwave Ring
+            particles.add(
+                HitParticle(
+                    position = impactPoint,
+                    velocity = Offset.Zero,
+                    color = Color(0xFFFFD54F),
+                    life = 14,
+                    maxLife = 14,
+                    size = 35f + attack.damage,
+                    isRing = true
+                )
+            )
+
+            // 2. Radial Starburst Hit-Sparks (8-14 sparks exploding outwards)
+            val sparkCount = if (attack.damage > 20) 14 else 9
+            val sparkColors = listOf(Color(0xFFFFD54F), Color(0xFFFF9100), Color(0xFFFF1744), Color(0xFF00E5FF))
+            for (i in 0 until sparkCount) {
+                val angle = (i * (360f / sparkCount) + Random.nextFloat() * 15f) * (Math.PI.toFloat() / 180f)
+                val speed = Random.nextFloat() * 10f + 5f
+                particles.add(
+                    HitParticle(
+                        position = impactPoint,
+                        velocity = Offset(kotlin.math.cos(angle) * speed, kotlin.math.sin(angle) * speed),
+                        color = sparkColors[i % sparkColors.size],
+                        life = 16 + Random.nextInt(6),
+                        maxLife = 22,
+                        size = Random.nextFloat() * 10f + 6f,
+                        isSpark = true
+                    )
+                )
+            }
+
+            // 3. Floating Damage Numbers & Combo Counter
             particles.add(
                 HitParticle(
                     position = defender.position.copy(y = defender.position.y - 110f),
-                    velocity = Offset(0f, -3f),
+                    velocity = Offset(0f, -3.5f),
                     color = Color(0xFFFFD54F),
-                    life = 20,
-                    maxLife = 20,
+                    life = 22,
+                    maxLife = 22,
                     text = "-${attack.damage}"
                 )
             )
@@ -431,9 +585,9 @@ class FightingEngine(
                         position = attacker.position.copy(y = attacker.position.y - 140f),
                         velocity = Offset(0f, -4f),
                         color = Color(0xFFFF4081),
-                        life = 25,
-                        maxLife = 25,
-                        text = "${attacker.comboCount} HITS!"
+                        life = 26,
+                        maxLife = 26,
+                        text = "${attacker.comboCount} HITS COMBO!"
                     )
                 )
             }

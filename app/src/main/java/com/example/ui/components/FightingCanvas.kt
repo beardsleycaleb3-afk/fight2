@@ -73,27 +73,52 @@ fun FightingCanvas(
                     drawHitboxesAndHurtboxes(engine.p2)
                 }
 
-                // Draw Hit Sparks & Damage Text Particles
+                // Draw Hit Sparks, Shockwave Rings & Damage Text Particles
                 for (p in engine.particles) {
                     val alpha = (p.life.toFloat() / p.maxLife.toFloat()).coerceIn(0f, 1f)
+                    val pos = p.position + Offset(shakeOffsetX, shakeOffsetY)
+
                     if (p.text != null) {
                         val textResult = textMeasurer.measure(
                             text = p.text,
                             style = TextStyle(
                                 color = p.color.copy(alpha = alpha),
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Black
                             )
                         )
                         drawText(
                             textLayoutResult = textResult,
-                            topLeft = p.position + Offset(shakeOffsetX, shakeOffsetY)
+                            topLeft = pos
+                        )
+                    } else if (p.isRing) {
+                        val currentRadius = (p.size * (1f - (p.life.toFloat() / p.maxLife.toFloat()))).coerceAtLeast(4f)
+                        drawCircle(
+                            color = p.color.copy(alpha = alpha * 0.8f),
+                            radius = currentRadius,
+                            center = pos,
+                            style = Stroke(width = 3.5f * alpha)
+                        )
+                    } else if (p.isSpark) {
+                        // Directional starburst spark line
+                        val tailPos = pos - (p.velocity * 1.8f * alpha)
+                        drawLine(
+                            color = p.color.copy(alpha = alpha),
+                            start = tailPos,
+                            end = pos,
+                            strokeWidth = (p.size * alpha).coerceAtLeast(1.5f),
+                            cap = StrokeCap.Round
+                        )
+                        drawCircle(
+                            color = Color.White.copy(alpha = alpha),
+                            radius = (p.size * 0.4f * alpha).coerceAtLeast(1f),
+                            center = pos
                         )
                     } else {
                         drawCircle(
                             color = p.color.copy(alpha = alpha),
-                            radius = 8f * alpha,
-                            center = p.position + Offset(shakeOffsetX, shakeOffsetY)
+                            radius = p.size * alpha,
+                            center = pos
                         )
                     }
                 }
@@ -195,6 +220,9 @@ private fun DrawScope.drawFighter(
 
     val headCenter = Offset(pos.x, pos.y - bodyHeight - 35f)
     val bodyCenter = Offset(pos.x, pos.y - bodyHeight / 2f - 10f)
+
+    // Resolve frame path from cached animation sequence
+    val framePath = FolderAnimationLoader.getCachedFramePath(char, fighter.state, fighter.currentFrameIndex)
 
     // Shadow on ground
     drawOval(

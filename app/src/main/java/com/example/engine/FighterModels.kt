@@ -125,5 +125,8 @@ data class HitParticle(
     val color: Color,
     var life: Int,
     val maxLife: Int,
-    val text: String? = null
+    val text: String? = null,
+    val size: Float = 10f,
+    val isSpark: Boolean = false,
+    val isRing: Boolean = false
 )
