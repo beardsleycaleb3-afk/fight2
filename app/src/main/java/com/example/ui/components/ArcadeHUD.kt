@@ -3,7 +3,7 @@ package com.example.ui.components
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -199,39 +199,12 @@ private fun TopFightHeader(
         }
 
         // Round Timer in Center
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
+        OnScreenMatchTimerHUD(
+            roundTimer = roundTimer,
+            maxTime = 99,
+            onPauseClicked = onPauseClicked,
             modifier = Modifier.padding(horizontal = 8.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .background(Color(0xFF1F1B24), CircleShape)
-                    .border(2.dp, Color(0xFFFFD54F), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "$roundTimer",
-                    color = Color(0xFFFFD54F),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-            IconButton(
-                onClick = onPauseClicked,
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .size(32.dp)
-                    .testTag("pause_button")
-            ) {
-                Icon(
-                    Icons.Default.Pause,
-                    contentDescription = "Pause",
-                    tint = Color.White
-                )
-            }
-        }
+        )
 
         // P2 Health & Energy Bar
         Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
@@ -549,6 +522,86 @@ private fun ActionButton(
             fontFamily = FontFamily.Monospace,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+fun OnScreenMatchTimerHUD(
+    roundTimer: Int,
+    maxTime: Int = 99,
+    onPauseClicked: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isCriticalTime = roundTimer in 1..15
+    val isTimeOver = roundTimer == 0
+
+    val infiniteTransition = rememberInfiniteTransition(label = "TimerPulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = if (isCriticalTime) 1.15f else 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseScale"
+    )
+
+    val timerColor = when {
+        isTimeOver -> Color(0xFFD50000)
+        isCriticalTime -> Color(0xFFFF1744)
+        roundTimer <= 30 -> Color(0xFFFFAB00)
+        else -> Color(0xFFFFD54F)
+    }
+
+    val progress = (roundTimer.toFloat() / maxTime.toFloat()).coerceIn(0f, 1f)
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.testTag("countdown_timer_hud")
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .scale(pulseScale)
+                .background(Color(0xFF0F0E17), CircleShape)
+                .border(2.dp, timerColor.copy(alpha = 0.6f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(2.dp),
+                color = timerColor,
+                trackColor = Color(0xFF232233),
+                strokeWidth = 3.dp
+            )
+
+            Text(
+                text = if (isTimeOver) "00" else String.format("%02d", roundTimer),
+                color = timerColor,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.testTag("round_timer_text")
+            )
+        }
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        IconButton(
+            onClick = onPauseClicked,
+            modifier = Modifier
+                .size(28.dp)
+                .testTag("pause_button")
+        ) {
+            Icon(
+                Icons.Default.Pause,
+                contentDescription = "Pause Game",
+                tint = Color.White
+            )
+        }
     }
 }
 
